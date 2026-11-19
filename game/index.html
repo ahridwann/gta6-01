@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neon Harbor — Porto Solmar</title>
+<link rel="icon" href="./favicon.svg">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0f2e; font-family: Verdana, Geneva, sans-serif; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #hud { position: fixed; inset: 0; pointer-events: none; color: #fff; display: none; }
+  #hud .panel { position: absolute; background: rgba(10, 8, 24, 0.55); border: 1px solid rgba(255, 180, 90, 0.45); border-radius: 8px; padding: 8px 12px; }
+  #money { top: 12px; left: 12px; font-size: 20px; font-weight: bold; color: #ffd76a; }
+  #money small { display: block; font-size: 12px; color: #ffb4a2; font-weight: normal; }
+  #wanted { top: 12px; right: 12px; font-size: 26px; letter-spacing: 4px; color: #ffd76a; text-shadow: 0 0 8px #ff5a3c; }
+  #wanted .dim { color: rgba(255,255,255,0.25); text-shadow: none; }
+  #health { left: 12px; bottom: 12px; width: 220px; }
+  #health .bar { height: 12px; background: rgba(255,255,255,0.2); border-radius: 6px; overflow: hidden; }
+  #health .fill { height: 100%; width: 100%; background: linear-gradient(90deg, #37e08b, #a8f0c6); }
+  #health .lbl { font-size: 12px; margin-top: 4px; }
+  #speed { right: 12px; bottom: 204px; font-size: 26px; font-weight: bold; text-align: right; }
+  #speed small { display: block; font-size: 11px; color: #ffb4a2; font-weight: normal; }
+  #minimap { position: absolute; right: 12px; bottom: 12px; border: 2px solid rgba(255, 180, 90, 0.6); border-radius: 8px; background: rgba(10, 8, 24, 0.7); }
+  #objective { top: 64px; left: 50%; transform: translateX(-50%); font-size: 15px; text-align: center; background: rgba(10, 8, 24, 0.6); border: 1px solid #ffd76a; border-radius: 8px; padding: 8px 16px; max-width: 560px; }
+  #objective b { color: #ffd76a; }
+  #hint { bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 12px; color: #ffe9c9; background: rgba(10, 8, 24, 0.55); border-radius: 6px; padding: 5px 10px; white-space: nowrap; }
+  #toast { top: 120px; left: 50%; transform: translateX(-50%); font-size: 18px; font-weight: bold; color: #ffd76a; text-shadow: 0 2px 6px #000; text-align: center; }
+  #menu { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, rgba(26,15,46,0.88), rgba(120,40,90,0.82)); color: #fff; z-index: 10; }
+  #menu .card { text-align: center; max-width: 640px; padding: 28px 36px; }
+  #menu h1 { font-size: 54px; margin: 0; color: #ffd76a; text-shadow: 0 0 24px #ff5a3c, 0 4px 0 #7a1f3d; letter-spacing: 3px; }
+  #menu h2 { font-size: 16px; color: #ffb4a2; margin: 6px 0 18px; font-weight: normal; }
+  #menu p { font-size: 14px; line-height: 1.6; color: #ffe9c9; }
+  #menu button { pointer-events: auto; font-size: 18px; font-weight: bold; margin: 6px; padding: 12px 26px; border: none; border-radius: 10px; cursor: pointer; background: #ffd76a; color: #2a0f1e; }
+  #menu button.alt { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid #ffd76a; }
+  #menu .keys { font-size: 12px; color: #d9c8ff; line-height: 1.8; margin-top: 14px; }
+  #menu.hidden, #hud.hidden { display: none; }
+  #brief { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(10, 8, 24, 0.78); color: #fff; z-index: 9; }
+  #brief .card { max-width: 560px; background: #241335; border: 1px solid #ffd76a; border-radius: 12px; padding: 24px 30px; }
+  #brief h2 { color: #ffd76a; margin-top: 0; }
+  #brief button { font-size: 16px; font-weight: bold; padding: 10px 22px; border: none; border-radius: 8px; cursor: pointer; background: #ffd76a; color: #2a0f1e; margin-right: 8px; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game" aria-label="Neon Harbor: open-world driving and action game in Porto Solmar"></canvas>
+<div id="hud">
+  <div class="panel" id="money">$0<small id="rank">Rank: Wheelman</small></div>
+  <div class="panel" id="wanted"></div>
+  <div class="panel" id="health"><div class="bar"><div class="fill" id="healthfill"></div></div><div class="lbl" id="healthlbl">Health 100</div></div>
+  <div class="panel" id="speed">0<small>km/h</small></div>
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div class="panel" id="objective"></div>
+  <div id="toast"></div>
+  <div id="hint">WASD move / drive &nbsp;·&nbsp; Mouse look &nbsp;·&nbsp; E steal / exit car &nbsp;·&nbsp; F punch &nbsp;·&nbsp; Click shoot &nbsp;·&nbsp; M mission &nbsp;·&nbsp; P pause</div>
+</div>
+<div id="menu"><div class="card">
+  <h1>NEON HARBOR</h1>
+  <h2>Porto Solmar &mdash; a sun-soaked harbor city. You are Dario &ldquo;D&rdquo; Cruz, getaway driver.</h2>
+  <p>Explore the city on foot or steal any car and drive. Watch out for the harbor police &mdash; the more trouble you cause, the more stars chase you. Run three story jobs, earn cash, climb from Wheelman to Harbor Legend.</p>
+  <button id="btnPlay">PLAY</button>
+  <button id="btnMission" class="alt">START MISSION 1</button>
+  <button id="btnContinue" class="alt">CONTINUE SAVE</button>
+  <div class="keys">WASD &mdash; move / drive &nbsp;·&nbsp; Mouse &mdash; look (click canvas to lock) &nbsp;·&nbsp; E &mdash; steal / exit car &nbsp;·&nbsp; F &mdash; punch &nbsp;·&nbsp; Left click &mdash; shoot pistol &nbsp;·&nbsp; M &mdash; mission &nbsp;·&nbsp; P &mdash; pause &nbsp;·&nbsp; R &mdash; restart after busted</div>
+</div></div>
+<div id="brief"><div class="card">
+  <h2 id="briefTitle">Mission</h2>
+  <p id="briefText"></p>
+  <button id="btnAccept">ACCEPT JOB</button>
+  <button id="btnDecline" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid #ffd76a;">NOT YET</button>
+</div></div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
